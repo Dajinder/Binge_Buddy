@@ -179,11 +179,10 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        // Load data from CSV files
+        // Load data and build indexes
         loadSubscriptionPlans("subscription_plans.csv");
         loadMediaData(new String[]{"Netflix_Data.csv", "AmazonPrime_Data.csv", "AppleTV_Data.csv"});
-        CastIndex.build(); // Build the cast index after loading media data
-        
+        CastIndex.build();
 
         Scanner scanner = new Scanner(System.in);
         int choice;
@@ -195,8 +194,16 @@ public class Main {
             System.out.println("4. Get More Information");
             System.out.println("5. Exit");
             System.out.print("Enter your choice: ");
-            choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+
+            try {
+                choice = scanner.nextInt();
+                scanner.nextLine(); // Clear the newline
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter a number between 1 and 5.");
+                scanner.nextLine(); // Clear the invalid input
+                choice = -1; // Set to invalid choice to loop back
+                continue; // Skip the rest of the loop and prompt again
+            }
 
             switch (choice) {
                 case 1: showSubscriptionMenu(scanner); break;
@@ -204,7 +211,8 @@ public class Main {
                 case 3: showMediaMenu(scanner, "TV Show"); break;
                 case 4: showMoreInformationMenu(scanner); break;
                 case 5: System.out.println("Exiting program..."); break;
-                default: System.out.println("Invalid choice. Please try again.");
+                default:
+                    System.out.println("Invalid choice. Please enter a number between 1 and 5.");
             }
         } while (choice != 5);
         scanner.close();
@@ -319,8 +327,18 @@ public class Main {
             System.out.println("6. Order Expensive to Cheapest");
             System.out.println("7. Back to Main Menu");
             System.out.print("Enter your choice: ");
-            subChoice = scanner.nextInt();
-            scanner.nextLine();
+            // subChoice = scanner.nextInt();
+            // scanner.nextLine();
+
+            try {
+                subChoice = scanner.nextInt();
+                scanner.nextLine(); // Clear the newline
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter a number between 1 and 7.");
+                scanner.nextLine(); // Clear the invalid input
+                subChoice = -1; // Set to invalid choice to loop back
+                continue; // Skip the rest of the loop and prompt again
+            }
 
             switch (subChoice) {
                 case 1: showPlatformDetails("Netflix"); break;
@@ -330,7 +348,7 @@ public class Main {
                 case 5: quickSort(plans, 0, plans.size() - 1, true); displaySortedPlans(); break;
                 case 6: quickSort(plans, 0, plans.size() - 1, false); displaySortedPlans(); break;
                 case 7: break;
-                default: System.out.println("Invalid choice.");
+                default: System.out.println("Invalid choice. Please enter a number between 1 and 7.");
             }
         } while (subChoice != 7);
     }
