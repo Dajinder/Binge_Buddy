@@ -1,3 +1,5 @@
+// import required libraries
+
 import java.io.*;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -5,14 +7,13 @@ import java.util.regex.Pattern;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-// Main class for the OTT platform CLI project
+// Defining main class for OTT platform in CLI
 public class Main {
-    // Data structures to store subscription plans and media items
-    static List<SubscriptionPlan> plans = new ArrayList<>();
-    static List<Media> mediaList = new ArrayList<>();
-    static Map<String, Integer> wordFrequency = new HashMap<>(); // Tracks word search frequency
-    static Trie trie = new Trie(); // Trie for word completion
-    static Trie castTrie = new Trie(); // For cast name suggestions
+    static List<SubscriptionPlan> plans = new ArrayList<>(); //Arraylist to store plans data
+    static List<Media> media_list = new ArrayList<>(); //Arraylist to store media details
+    static Map<String, Integer> word_frequency = new HashMap<>(); // Tracks word search frequency
+    static Trie trie = new Trie(); // Trie data structure for word completion algorithm
+    static Trie cast_trie = new Trie(); // trie for cast name suggestions
 
     // SubscriptionPlan class (unchanged)
     static class SubscriptionPlan {
@@ -143,11 +144,11 @@ public class Main {
     static class CastIndex {
         private static Map<String, List<Media>> castIndex = new HashMap<>();
 
-        // Build the cast index and populate castTrie
+        // Build the cast index and populate cast_trie
         static void build() {
             castIndex.clear(); // Clear existing entries to prevent duplicates
             Set<String> uniqueCastNames = new HashSet<>(); // To avoid duplicate cast names in trie
-            for (Media media : mediaList) {
+            for (Media media : media_list) {
                 String cast = media.cast;
                 for (String actor : cast.split(",")) {
                     // Normalize actor name for indexing
@@ -160,10 +161,10 @@ public class Main {
                     // Add to castIndex
                     castIndex.putIfAbsent(normalizedActor, new ArrayList<>());
                     castIndex.get(normalizedActor).add(media);
-                    // Add original actor name to castTrie (before normalization)
+                    // Add original actor name to cast_trie (before normalization)
                     String originalActor = actor.trim();
                     if (!originalActor.isEmpty() && !uniqueCastNames.contains(originalActor)) {
-                        castTrie.insertCast(originalActor);
+                        cast_trie.insertCast(originalActor);
                         uniqueCastNames.add(originalActor);
                     }
                 }
@@ -187,6 +188,9 @@ public class Main {
         loadSubscriptionPlans("subscription_plans.csv");
         loadMediaData(new String[]{"Netflix_Data.csv", "AmazonPrime_Data.csv", "AppleTV_Data.csv"});
         CastIndex.build();
+
+        // Load existing search frequencies from CSV (if the file exists)
+        loadSearchFrequencyFromCSV();
 
         Scanner scanner = new Scanner(System.in);
         int choice;
@@ -252,7 +256,7 @@ public class Main {
                                 parts.length > 6 ? parts[6] : parts[5],
                                 parts.length > 7 ? parts[7] : parts[6],
                                 parts.length > 8 ? parts[8] : parts[7]);
-                        mediaList.add(media);
+                        media_list.add(media);
                         trie.insert(media.name, media); // Insert Media object into Trie
                     }
                 }
@@ -262,45 +266,7 @@ public class Main {
         }
     }
 
-    // Integrated buildCastIndex method
-    // static void buildCastIndex() {
-    //     castIndex.clear();
-    //     String[] CSV_FILES = {"Netflix_Data.csv", "AmazonPrime_Data.csv", "AppleTV_Data.csv"};
-    //     for (String csvFile : CSV_FILES) {
-    //         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-    //             br.readLine();
-    //             String line;
-    //             while ((line = br.readLine()) != null) {
-    //                 String[] values = splitCSV(line); // Use existing splitCSV method
-    //                 if (values.length >= 8) {
-    //                     String type = values[0].trim();
-    //                     String name = values[1].trim();
-    //                     String description = values[2].trim();
-    //                     String genre = values[3].trim();
-    //                     String releaseDate = values[4].trim();
-    //                     String season = values.length > 5 ? values[5].trim() : "-";
-    //                     String cast = values.length > 6 ? values[6].trim() : values[5].trim();
-    //                     String platform = values.length > 7 ? values[7].trim() : values[6].trim();
-    //                     String url = values.length > 8 ? values[8].trim() : values[7].trim();
-
-    //                     Media media = new Media(type, name, description, genre, releaseDate, season, cast, platform, url);
-
-    //                     for (String actor : cast.split(",")) {
-    //                         actor = actor.trim()
-    //                                      .replaceAll("^\"|\"$", "")
-    //                                      .replaceAll("\\p{Zs}+", " ")
-    //                                      .replaceAll("[^\\p{ASCII}]", "")
-    //                                      .toLowerCase();
-    //                         castIndex.putIfAbsent(actor, new ArrayList<>());
-    //                         castIndex.get(actor).add(media);
-    //                     }
-    //                 }
-    //             }
-    //         } catch (IOException e) {
-    //             System.out.println("Error reading file: " + csvFile);
-    //         }
-    //     }
-    // }
+    
 
     // CSV split method (unchanged)
     static String[] splitCSV(String line) {
@@ -444,7 +410,7 @@ public class Main {
         System.out.print("Select a name to view details (or press Enter to skip): ");
         String selected = scanner.nextLine();
         if (!selected.isEmpty()) {
-            mediaList.stream()
+            media_list.stream()
                     .filter(m -> m.type.equals(type) && m.name.equalsIgnoreCase(selected))
                     .forEach(m -> System.out.println(m + "\n------------------------"));
         }
@@ -462,7 +428,7 @@ public class Main {
             genre = matchedGenre;
         }
         final String finalGenre = genre;
-        mediaList.stream()
+        media_list.stream()
                 .filter(m -> m.type.equals(type) && mapToValidGenre(m.genre).equalsIgnoreCase(finalGenre))
                 .forEach(m -> System.out.println(m + "\n------------------------"));
     }
@@ -504,71 +470,32 @@ public class Main {
         return Arrays.stream(VALID_GENRES).anyMatch(g -> g.equalsIgnoreCase(genre)) ? genre : "Others";
     }
 
-    // Search by word (unchanged)
-    // static void searchByWord(Scanner scanner, String type) {
-    //     System.out.print("Enter word to search in " + type + " name/description: ");
-    //     String word = scanner.nextLine().toLowerCase();
-    //     wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
-    //     mediaList.stream()
-    //             .filter(m -> m.type.equals(type) && (m.name.toLowerCase().contains(word) || m.description.toLowerCase().contains(word)))
-    //             .forEach(m -> System.out.println(m + "\n------------------------"));
-    //     System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
-    // }
-
-    // static void searchByWord(Scanner scanner, String type) {
-    //     System.out.print("Enter word to search in " + type + " name/description: ");
-    //     String word = scanner.nextLine().toLowerCase().trim();
-    //     wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
-
-    //     // Filter media items where the exact word appears in name or description
-    //     boolean found = false;
-    //     for (Media m : mediaList) {
-    //         if (!m.type.equals(type)) continue;
-
-    //         // Split name and description into words (using whitespace and punctuation as delimiters)
-    //         String[] nameWords = m.name.toLowerCase().split("[\\s.,!?]+");
-    //         String[] descWords = m.description.toLowerCase().split("[\\s.,!?]+");
-
-    //         // Check if the search word matches any whole word
-    //         boolean matchInName = Arrays.stream(nameWords).anyMatch(w -> w.equals(word));
-    //         boolean matchInDesc = Arrays.stream(descWords).anyMatch(w -> w.equals(word));
-
-    //         if (matchInName || matchInDesc) {
-    //             System.out.println(m + "\n------------------------");
-    //             found = true;
-    //         }
-    //     }
-
-    //     if (!found) {
-    //         System.out.println("No " + type + "s found containing the word '" + word + "'.");
-    //     }
-    //     System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
-    // }
+    
 
 
-    // Search by word (updated with ranking system)
+    // Updated searchByWord to save frequency to CSV after each search
     static void searchByWord(Scanner scanner, String type) {
         System.out.print("Enter word to search in " + type + " name/description: ");
         String word = scanner.nextLine().toLowerCase().trim();
-        wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+        word_frequency.put(word, word_frequency.getOrDefault(word, 0) + 1);
+
+        // Save the updated frequency to CSV
+        saveSearchFrequencyToCSV();
 
         String regex = "\\b" + Pattern.quote(word) + "(s)?\\b";
         Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 
-        // List to store matching media along with their frequency in description
         List<Map.Entry<Media, Integer>> resultsWithFrequency = new ArrayList<>();
 
-        for (Media m : mediaList) {
+        for (Media m : media_list) {
             if (!m.type.equals(type)) continue;
 
             Matcher nameMatcher = pattern.matcher(m.name);
             Matcher descMatcher = pattern.matcher(m.description);
 
-            // Check if the word appears in name or description
             if (nameMatcher.find() || descMatcher.find()) {
-                // Count occurrences in description
                 int frequency = 0;
-                descMatcher.reset(); // Reset matcher to start
+                descMatcher.reset();
                 while (descMatcher.find()) {
                     frequency++;
                 }
@@ -576,10 +503,8 @@ public class Main {
             }
         }
 
-        // Sort results by frequency in descending order
         resultsWithFrequency.sort((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue()));
 
-        // Display sorted results
         if (resultsWithFrequency.isEmpty()) {
             System.out.println("No " + type + "s found with the word '" + word + "' or '" + word + "s'.");
         } else {
@@ -587,20 +512,19 @@ public class Main {
             for (Map.Entry<Media, Integer> entry : resultsWithFrequency) {
                 Media m = entry.getKey();
                 int freq = entry.getValue();
-                System.out.println(m);
-                // System.out.println(m + "\n[Word '" + word + "' appears " + freq + " time(s) in description]"); //printing the frequency of word in description
+                System.out.println(m + "\n[Word '" + word + "' appears " + freq + " time(s) in description]");
                 System.out.println("------------------------");
             }
         }
 
-        System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
+        System.out.println("Search frequency for '" + word + "': " + word_frequency.get(word));
     }
 
 
     // Show all media for a platform (unchanged)
     static void showPlatformMedia(String platform, String type) {
         System.out.println("\nAll " + type + "s on " + platform + ":");
-        mediaList.stream()
+        media_list.stream()
                 .filter(m -> m.type.equals(type) && m.platform.equalsIgnoreCase(platform))
                 .forEach(m -> System.out.println(m + "\n------------------------"));
     }
@@ -807,7 +731,7 @@ public class Main {
     static void searchByCast(Scanner scanner) {
         System.out.print("Enter cast name prefix"); // used trie for cast suggestions
         String prefix = scanner.nextLine();
-        List<String> suggestions = castTrie.getCastSuggestions(prefix);
+        List<String> suggestions = cast_trie.getCastSuggestions(prefix);
         if (suggestions.isEmpty()) {
             System.out.println("No cast members found with prefix: " + prefix);
             return;
@@ -828,4 +752,46 @@ public class Main {
             }
         }
     }
+
+    // New method to load search frequencies from CSV (if it exists)
+    static void loadSearchFrequencyFromCSV() {
+        File file = new File("search_frequency.csv");
+        if (!file.exists()) {
+            return; // No file to load
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            br.readLine(); // Skip header
+            while ((line = br.readLine()) != null) {
+                String[] parts = splitCSV(line);
+                if (parts.length == 2) {
+                    String word = parts[0];
+                    int frequency = Integer.parseInt(parts[1]);
+                    word_frequency.put(word, frequency);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error loading search frequency from CSV: " + e.getMessage());
+        }
+    }
+
+    // New method to save search frequencies to CSV
+    static void saveSearchFrequencyToCSV() {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter("search_frequency.csv"))) {
+            // Write header
+            bw.write("Word,Frequency");
+            bw.newLine();
+
+            // Write each word and its frequency
+            for (Map.Entry<String, Integer> entry : word_frequency.entrySet()) {
+                bw.write(String.format("\"%s\",%d", entry.getKey(), entry.getValue()));
+                bw.newLine();
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving search frequency to CSV: " + e.getMessage());
+        }
+    }
+
+    
 }
