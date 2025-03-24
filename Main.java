@@ -1,5 +1,9 @@
 import java.io.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 
 // Main class for the OTT platform CLI project
 public class Main {
@@ -345,7 +349,7 @@ public class Main {
                 case 2: showPlatformDetails("Amazon Prime Video"); break;
                 case 3: showPlatformDetails("Apple TV+"); break;
                 case 4: showPlatformDetails("Crave"); break;
-                case 5: quickSort(plans, 0, plans.size() - 1, true); displaySortedPlans(); break;
+                case 5: quickSort(plans, 0, plans.size() - 1, true); displaySortedPlans(); break; // quick sort used for subscription plans
                 case 6: quickSort(plans, 0, plans.size() - 1, false); displaySortedPlans(); break;
                 case 7: break;
                 default: System.out.println("Invalid choice. Please enter a number between 1 and 7.");
@@ -390,10 +394,10 @@ public class Main {
         int choice;
         do {
             System.out.println("\n=== " + type + " Menu ===");
-            System.out.println("1. Search by Name (with word completion)");
-            System.out.println("2. Search by Genre");
-            System.out.println("3. Search by Word (in name/description)");
-            System.out.println("4. Show All Netflix " + type + "s");
+            System.out.println("1. Search by Name"); // word completion
+            System.out.println("2. Search by Genre"); //based on edit distance 
+            System.out.println("3. Generic Search"); // for the record
+            System.out.println("4. Show All Netflix " + type + "s"); 
             System.out.println("5. Show All Amazon Prime " + type + "s");
             System.out.println("6. Show All Apple TV+ " + type + "s");
             System.out.println("7. Show All Crave " + type + "s");
@@ -448,7 +452,7 @@ public class Main {
 
     // Search by genre (unchanged)
     static void searchByGenre(Scanner scanner, String type) {
-        System.out.println("Available Genres: Comedy, Thriller, Animation, Action, Others");
+        System.out.println("Available Genres: Comedy, Thriller, Animation, Action, Drama, Horror, Adventure, Sci-fi, Sports, Documentary, Others");
         System.out.print("Enter genre: ");
         String genre = scanner.nextLine();
         String matchedGenre = findClosestGenre(genre);
@@ -464,12 +468,12 @@ public class Main {
     }
 
     static boolean isValidGenre(String genre) {
-        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action", "Others"};
+        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action", "Drama", "Horror", "Adventure", "Sci-fi", "Sports", "Documentary"};
         return Arrays.stream(VALID_GENRES).anyMatch(g -> g.equalsIgnoreCase(genre));
     }
 
     static String findClosestGenre(String input) {
-        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action", "Others"};
+        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action", "Drama", "Horror", "Adventure", "Sci-fi", "Sports", "Documentary"};
         int minDistance = Integer.MAX_VALUE;
         String closest = VALID_GENRES[0];
         for (String genre : VALID_GENRES) {
@@ -496,7 +500,7 @@ public class Main {
     }
 
     static String mapToValidGenre(String genre) {
-        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action"};
+        String[] VALID_GENRES = {"Comedy", "Thriller", "Animation", "Action", "Drama", "Horror", "Adventure", "Sci-fi", "Sports", "Documentary"};
         return Arrays.stream(VALID_GENRES).anyMatch(g -> g.equalsIgnoreCase(genre)) ? genre : "Others";
     }
 
@@ -511,35 +515,87 @@ public class Main {
     //     System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
     // }
 
+    // static void searchByWord(Scanner scanner, String type) {
+    //     System.out.print("Enter word to search in " + type + " name/description: ");
+    //     String word = scanner.nextLine().toLowerCase().trim();
+    //     wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+
+    //     // Filter media items where the exact word appears in name or description
+    //     boolean found = false;
+    //     for (Media m : mediaList) {
+    //         if (!m.type.equals(type)) continue;
+
+    //         // Split name and description into words (using whitespace and punctuation as delimiters)
+    //         String[] nameWords = m.name.toLowerCase().split("[\\s.,!?]+");
+    //         String[] descWords = m.description.toLowerCase().split("[\\s.,!?]+");
+
+    //         // Check if the search word matches any whole word
+    //         boolean matchInName = Arrays.stream(nameWords).anyMatch(w -> w.equals(word));
+    //         boolean matchInDesc = Arrays.stream(descWords).anyMatch(w -> w.equals(word));
+
+    //         if (matchInName || matchInDesc) {
+    //             System.out.println(m + "\n------------------------");
+    //             found = true;
+    //         }
+    //     }
+
+    //     if (!found) {
+    //         System.out.println("No " + type + "s found containing the word '" + word + "'.");
+    //     }
+    //     System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
+    // }
+
+
+    // Search by word (updated with ranking system)
     static void searchByWord(Scanner scanner, String type) {
         System.out.print("Enter word to search in " + type + " name/description: ");
         String word = scanner.nextLine().toLowerCase().trim();
         wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
 
-        // Filter media items where the exact word appears in name or description
-        boolean found = false;
+        String regex = "\\b" + Pattern.quote(word) + "(s)?\\b";
+        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+
+        // List to store matching media along with their frequency in description
+        List<Map.Entry<Media, Integer>> resultsWithFrequency = new ArrayList<>();
+
         for (Media m : mediaList) {
             if (!m.type.equals(type)) continue;
 
-            // Split name and description into words (using whitespace and punctuation as delimiters)
-            String[] nameWords = m.name.toLowerCase().split("[\\s.,!?]+");
-            String[] descWords = m.description.toLowerCase().split("[\\s.,!?]+");
+            Matcher nameMatcher = pattern.matcher(m.name);
+            Matcher descMatcher = pattern.matcher(m.description);
 
-            // Check if the search word matches any whole word
-            boolean matchInName = Arrays.stream(nameWords).anyMatch(w -> w.equals(word));
-            boolean matchInDesc = Arrays.stream(descWords).anyMatch(w -> w.equals(word));
-
-            if (matchInName || matchInDesc) {
-                System.out.println(m + "\n------------------------");
-                found = true;
+            // Check if the word appears in name or description
+            if (nameMatcher.find() || descMatcher.find()) {
+                // Count occurrences in description
+                int frequency = 0;
+                descMatcher.reset(); // Reset matcher to start
+                while (descMatcher.find()) {
+                    frequency++;
+                }
+                resultsWithFrequency.add(new AbstractMap.SimpleEntry<>(m, frequency));
             }
         }
 
-        if (!found) {
-            System.out.println("No " + type + "s found containing the word '" + word + "'.");
+        // Sort results by frequency in descending order
+        resultsWithFrequency.sort((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue()));
+
+        // Display sorted results
+        if (resultsWithFrequency.isEmpty()) {
+            System.out.println("No " + type + "s found with the word '" + word + "' or '" + word + "s'.");
+        } else {
+            System.out.println("\nResults (ranked by frequency in description):");
+            for (Map.Entry<Media, Integer> entry : resultsWithFrequency) {
+                Media m = entry.getKey();
+                int freq = entry.getValue();
+                System.out.println(m);
+                // System.out.println(m + "\n[Word '" + word + "' appears " + freq + " time(s) in description]"); //printing the frequency of word in description
+                System.out.println("------------------------");
+            }
         }
+
         System.out.println("Search frequency for '" + word + "': " + wordFrequency.get(word));
     }
+
 
     // Show all media for a platform (unchanged)
     static void showPlatformMedia(String platform, String type) {
@@ -555,28 +611,174 @@ public class Main {
         do {
             System.out.println("\n=== More Information Menu ===");
             System.out.println("1. Search by Cast");
-            System.out.println("2. Back to Main Menu");
+            System.out.println("2. Get Contact Details");
+            System.out.println("3. Back to Main Menu");
             System.out.print("Enter your choice: ");
 
             try {
                 choice = scanner.nextInt();
                 scanner.nextLine();
             } catch (InputMismatchException e) {
-                System.out.println("Invalid choice. Please enter a number between 1 and 2.");
+                System.out.println("Invalid choice. Please enter a number between 1 and 3.");
                 scanner.nextLine();
                 choice = -1;
             }
 
             switch (choice) {
                 case 1: searchByCast(scanner); break;
-                case 2: System.out.println("Returning to Main Menu..."); break;
+                case 2: getContactDetails(scanner); break;
+                case 3: System.out.println("Returning to Main Menu..."); break;
                 default:
                     if (choice != -1) {
-                        System.out.println("Invalid choice. Please enter a number between 1 and 2.");
+                        System.out.println("Invalid choice. Please enter a number between 1 and 3.");
                     }
             }
-        } while (choice != 2);
+        } while (choice != 3);
     }
+
+
+    // Get Contact Details (unchanged)
+    static void getContactDetails(Scanner scanner) {
+        System.out.println("\n=== Get Contact Details ===");
+        System.out.println("Select a platform:");
+        System.out.println("1. Netflix");
+        System.out.println("2. Amazon Prime");
+        System.out.println("3. Apple TV+");
+        System.out.println("4. Crave");
+        System.out.print("Enter your choice: ");
+
+        int platformChoice;
+        try {
+            platformChoice = scanner.nextInt();
+            scanner.nextLine();
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid choice. Please enter a number between 1 and 4.");
+            scanner.nextLine();
+            return;
+        }
+
+        String platform;
+        String parserPlatform;
+        switch (platformChoice) {
+            case 1:
+                platform = "Netflix";
+                parserPlatform = "netflix";
+                break;
+            case 2:
+                platform = "Amazon Prime Video";
+                parserPlatform = "amazon-prime";
+                break;
+            case 3:
+                platform = "Apple TV+";
+                parserPlatform = "apple-tv";
+                break;
+            case 4:
+                platform = "Crave";
+                parserPlatform = "crave";
+                break;
+            default:
+                System.out.println("Invalid choice. Please enter a number between 1 and 4.");
+                return;
+        }
+
+        try {
+            String contactDetails = fetchContactDetails(parserPlatform);
+            System.out.println("\nContact Details for " + platform + ":");
+            System.out.println(contactDetails);
+        } catch (Exception e) {
+            System.out.println("Error fetching contact details for " + platform + ": " + e.getMessage());
+        }
+    }
+
+
+    // Updated fetchContactDetails to use websiteParse
+    static String fetchContactDetails(String platform) throws Exception {
+        return websiteParse(platform);
+    }
+
+
+    // Modified websiteParse to return a formatted string
+    static String websiteParse(String platform) throws Exception {
+        String url = "";
+        switch (platform) {
+            case "netflix":
+                url = "https://www.netflix.com";
+                break;
+            case "crave":
+                url = "https://www.crave.ca/en/contact";
+                break;
+            case "amazon-prime":
+                url = "https://www.amazon.ca/gp/help/customer/display.html?nodeId=508510";
+                break;
+            case "apple-tv":
+                url = "https://www.apple.com/ca/apple-tv-plus/";
+                break;
+            default:
+                throw new Exception("Unsupported platform: " + platform);
+        }
+
+        try {
+            // Fetch and parse HTML document using JSoup
+            Document doc = Jsoup.connect(url)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36")
+                    .timeout(10000)
+                    .get();
+
+            String text = doc.text();
+            String emailRegex = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}";
+            Pattern emailPattern = Pattern.compile(emailRegex);
+            Matcher emailMatcher = emailPattern.matcher(text);
+            String phoneRegex = "";
+            if (platform.equals("apple-tv") || platform.equals("crave")) {
+                phoneRegex = "1-8\\d{2}-[A-Z0-9-]{6,8}";
+            } else {
+                phoneRegex = "\\+?\\d{0,3}[\\s-]?(\\(?\\d{3}\\)?[\\s-]?\\d{3}[\\s-]?\\d{4})";
+            }
+
+            Pattern phonePattern = Pattern.compile(phoneRegex);
+            Matcher phoneMatcher = phonePattern.matcher(text);
+
+            StringBuilder contactDetails = new StringBuilder();
+
+            // Collect email addresses
+            List<String> emails = new ArrayList<>();
+            while (emailMatcher.find()) {
+                emails.add(emailMatcher.group());
+            }
+            if (emails.isEmpty()) {
+                contactDetails.append("Email: Not found\n");
+            } else {
+                contactDetails.append("Email(s):\n");
+                for (String email : emails) {
+                    contactDetails.append("  - ").append(email).append("\n");
+                }
+            }
+
+            // Collect phone numbers
+            List<String> phones = new ArrayList<>();
+            while (phoneMatcher.find()) {
+                phones.add(phoneMatcher.group());
+            }
+            if (phones.isEmpty()) {
+                contactDetails.append("Phone: Not found\n");
+            } else {
+                contactDetails.append("Phone Number(s):\n");
+                for (String phone : phones) {
+                    contactDetails.append("  - ").append(phone).append("\n");
+                }
+            }
+
+            // Add website URL
+            if (!emails.isEmpty() || !phones.isEmpty()) {
+                contactDetails.append("Website: ").append(url);
+            }
+
+            return contactDetails.toString();
+        } catch (IOException e) {
+            throw new Exception("Failed to fetch contact details due to a network or parsing error: " + e.getMessage());
+        }
+    }
+
 
     //Search by Cast
     // static void searchByCast(Scanner scanner) {
@@ -603,7 +805,7 @@ public class Main {
 
     // Search by Cast (updated with suggestions)
     static void searchByCast(Scanner scanner) {
-        System.out.print("Enter cast name prefix (e.g., 'Tom' for Tom Hanks): ");
+        System.out.print("Enter cast name prefix"); // used trie for cast suggestions
         String prefix = scanner.nextLine();
         List<String> suggestions = castTrie.getCastSuggestions(prefix);
         if (suggestions.isEmpty()) {
