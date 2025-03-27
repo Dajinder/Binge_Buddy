@@ -29,8 +29,8 @@ CSV files: subscription_plans.csv, Netflix_Data.csv, AmazonPrime_Data.csv, Apple
 
 Clone: git clone https://github.com/your-username/binge-buddy.git and cd binge-buddy.
 Add required CSV files to the project root.
-Compile: javac Main.java.
-Run: java Main.
+Compile: javac -cp .;jsoup-1.19.1.jar Main.java
+Run: java -cp .;jsoup-1.19.1.jar Main
 
 
 **Usage:**
