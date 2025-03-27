@@ -1,4 +1,3 @@
-// Importing all the required libraries for file handling, data structures, regex, and HTML parsing
 import java.io.*;
 import java.util.*;
 import java.util.regex.Matcher;
